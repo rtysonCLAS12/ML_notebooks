@@ -12,6 +12,8 @@ import org.nd4j.evaluation.classification.Evaluation;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
+import org.nd4j.linalg.dataset.api.preprocessor.NormalizerMinMaxScaler;
+import org.nd4j.linalg.dataset.api.preprocessor.NormalizerStandardize;
 import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.learning.config.Adam;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
@@ -42,6 +44,11 @@ public class DL4J_Example {
 		DataSet TestData = CreateDataset(hipoLocPos,hipoLocNeg,NTest,400,JLab);
 		long inputSize=TrainData.getFeatures().shape()[1];
 		long outputSize=TrainData.getLabels().shape()[1];
+	
+		NormalizerStandardize scaler = new NormalizerStandardize();
+		scaler.fit(TrainData);
+		scaler.transform(TrainData.getFeatures());
+		scaler.transform(TestData.getFeatures());
 		
 		System.out.println("input "+inputSize+" output "+outputSize);
 		
@@ -77,7 +84,7 @@ public class DL4J_Example {
 		int eachIterations = 1;
 		network.addListeners(new ScoreIterationListener(eachIterations));
 
-		int nbEpochs=10;
+		int nbEpochs=40;
 		
 		GraphErrors gTrainAcc= new GraphErrors();
 		GraphErrors gTestAcc= new GraphErrors();
