@@ -6,7 +6,7 @@ This example is based on a PID classification task where the aim is to distingui
 
 NB: Even if the accuracy returned by the algorithm is over 90% this example is by no means complete and is not ready to be deployed in an analysis.
 
-In principle this directory is an eclipse-workspace and you should be able to load this as is (although unfortunately I'm no expert in this).
+In principle this directory is an eclipse-workspace and you should be able to load this as is (although unfortunately I'm no expert in this). Once you have loaded the (maven) project you can run this as usual, it should be ready to go!
 
 The DL4J_Example class contains several methods for plotting relevant metrics, and reading in data from .hipo files. The main thing to note here is that you need to pass in the location of the data files, at JLab these can be found at /volatile/clas12/osg2/tyson/job_3143 and job_3144. This is done by default at the start of main. The rest of main then sets up the network architecture, trains the network and evaluates it. 
 
