@@ -11,3 +11,12 @@ In principle this directory is an eclipse-workspace and you should be able to lo
 The DL4J_Example class contains several methods for plotting relevant metrics, and reading in data from .hipo files. The main thing to note here is that you need to pass in the location of the data files, at JLab these can be found at /volatile/clas12/osg2/tyson/job_3143 and job_3144. This is done by default at the start of main. The rest of main then sets up the network architecture, trains the network and evaluates it. 
 
 You can also decide to use GPU processing if you want, in which case you'll need to uncomment lines 34 and 40 of the pom.xml file (and comment out lines 35 and 41).
+
+Some additional remarks:
+- Here's a link to the deeplearning4j library  [documentation](https://deeplearning4j.konduit.ai/).
+- The deeplearning4j library uses the [nd4j library](https://deeplearning4j.konduit.ai/nd4j/overview) notably for its own datatypes (INDArray etc).
+- In general for classification problems it's useful to have balanced datasets with the same amount of events from each classes as this makes calculating relevant metrics much simpler.
+- In general it's also useful to normalise your data as this will make it easier for your model to learn, especially when different variables have widly different ranges.
+- It's generally hard to know what network architecture to use for any given task. You can therefore try playing about with the number of layers, the number of nodes per layer, their activation functions or the network updater and the loss function to try and see if you can improve the network performance in this way.
+- The network is here trained on simulated data. The advantage of this is that it's easier to know what goes into your training sample, and to therefore avoid introducing any biases which might lead your model to learning the wrong thing. The disadvantage is that you need to make sure that your simulations are representative of CLAS12 data, and you need to evaluate the performance of your network on CLAS12 data.
+- The above would constistute the next steps if you wanted to take this example further: you should try plotting the distributions of your features for neutron and photon classes, potentially adding more if you think that would help, and then think of ways to validate your model.
