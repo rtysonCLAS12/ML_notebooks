@@ -1,0 +1,5 @@
+# DeepLearning4J Example
+
+In this example you will learn how to use the deeplearning4j library in Java with the CLAS12 Hipo file reading tools (see [Hipo Library](https://github.com/gavalian/hipo) ). 
+
+This example is based on a PID classification task where the aim is to distinguish between simulated photons and neutrons detected in the CLAS12 Forward Detector based on their energy deposition in the calorimeters, and the shower width in U/V/W. 
