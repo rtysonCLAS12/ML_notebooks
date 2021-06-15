@@ -19,16 +19,11 @@
       <artifactId>coat-libs</artifactId>
       <version>6.3.0-SNAPSHOT</version>
     </dependency>
-    <dependency>
-      <groupId>org.jlab.coda</groupId>
-      <artifactId>jclara</artifactId>
-      <version>4.3-SNAPSHOT</version>
-    </dependency>
-    <dependency>
+    <!--<dependency>
 	  <groupId>org.bytedeco</groupId>
       <artifactId>cuda-platform-redist</artifactId>
 	  <version>10.2-7.6-1.5.3</version>
- 	</dependency>
+ 	</dependency>-->
     <dependency>
       <groupId>org.deeplearning4j</groupId>
       <!--<artifactId>deeplearning4j-cuda-10.2</artifactId>  -->
@@ -52,6 +47,16 @@
       </extension>
     </extensions>
     <plugins>
+
+       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+            <source>1.6</source>
+            <target>1.6</target>
+        </configuration>
+       </plugin>
+    
       <plugin>
 	<artifactId>maven-assembly-plugin</artifactId>
 	<version>2.6</version>
@@ -61,7 +66,7 @@
           </descriptorRefs>
           <archive>
             <manifest>
-              <mainClass>org.jlab.calib.services.TOFCalibration</mainClass>
+              <mainClass>DL4J_Example</mainClass>
             </manifest>
           </archive>
 	</configuration>
