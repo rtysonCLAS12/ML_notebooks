@@ -6,7 +6,23 @@ This example is based on a PID classification task where the aim is to distingui
 
 NB: Even if the accuracy returned by the algorithm is over 90% this example is by no means complete and is not ready to be deployed in an analysis.
 
-In principle this directory is an eclipse-workspace and you should be able to load this as is (although unfortunately I'm no expert in this). Once you have loaded the (maven) project you can run this as usual, it should be ready to go!
+## Compile with Maven
+
+First off many thanks to Angela Biselli for helping me figure this out.
+
+- cd to where you want to download the repository.
+- git clone https://github.com/rtysonCLAS12/ML_notebooks.git
+- cd DL4J_Example/DL4J_Example
+- mvn package
+- run with java -jar target/DL4J_Example-0.0.1-SNAPSHOT-jar-with-dependencies.jar
+
+When compiling maven will download all the necessary librairies, this will take up to ~1Gb, and produce a ~1Gb .jar file. You can change where the librairies are copied to in JLab with:
+- cp /group/clas12/packages/maven/3.5.0/conf/settings.xml ~/.m2/
+- set a new location in settings.xml for the repository by adding a line 
+<localRepository>/volatile/clas12/biselli/repository</localRepository>
+
+
+In principle this directory is also an eclipse-workspace and you should be able to load this as is (although unfortunately I'm no expert in this). Once you have loaded the (maven) project you can run this as usual, it should be ready to go!
 
 The DL4J_Example class contains several methods for plotting relevant metrics, and reading in data from .hipo files. The main thing to note here is that you need to pass in the location of the data files, at JLab these can be found at /volatile/clas12/osg2/tyson/job_3143 and job_3144. This is done by default at the start of main. The rest of main then sets up the network architecture, trains the network and evaluates it. 
 
