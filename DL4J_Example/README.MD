@@ -19,7 +19,7 @@ First off many thanks to Angela Biselli for helping me figure this out.
 When compiling maven will download all the necessary librairies, this will take up to ~1Gb, and produce a ~1Gb .jar file. You can change where the librairies are copied to in JLab with:
 - cp /group/clas12/packages/maven/3.5.0/conf/settings.xml ~/.m2/
 - set a new location in settings.xml for the repository by adding a line 
-"<localRepository> /path/to/desired/location </localRepository>"
+```<localRepository>/path/to/desired/location</localRepository>```
 
 
 In principle this directory is also an eclipse-workspace and you should be able to load this as is (although unfortunately I'm no expert in this). Once you have loaded the (maven) project you can run this as usual, it should be ready to go!
