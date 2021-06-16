@@ -24,6 +24,8 @@ When compiling maven will download all the necessary librairies, this will take 
 
 In principle this directory is also an eclipse-workspace and you should be able to load this as is (although unfortunately I'm no expert in this). Once you have loaded the (maven) project you can run this as usual, it should be ready to go!
 
+## Additional Comments
+
 The DL4J_Example class contains several methods for plotting relevant metrics, and reading in data from .hipo files. The main thing to note here is that you need to pass in the location of the data files, at JLab these can be found at /volatile/clas12/osg2/tyson/job_3143 and job_3144. This is done by default at the start of main. The rest of main then sets up the network architecture, trains the network and evaluates it. 
 
 You can also decide to use GPU processing if you want, in which case you'll need to uncomment lines 22 to 26 and lines 34 and 40 of the pom.xml file (and comment out lines 35 and 41). Note if you are compiling your code to a jar file adding the redist in lines 22 to 26 greatly increases the size of your jar (and corresponding libraries). 
