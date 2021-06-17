@@ -22,7 +22,7 @@ When compiling maven will download all the necessary librairies, this will take 
 ```<localRepository>/path/to/desired/location</localRepository>```
 
 
-In principle this directory is also an eclipse-workspace and you should be able to load this as is (although unfortunately I'm no expert in this). Once you have loaded the (maven) project you can run this as usual, it should be ready to go!
+In principle the DL4J_Example directory is also an eclipse-workspace and you should be able to load this as is (although unfortunately I'm no expert in this). Once you have loaded the (maven) project you can run this as usual, it should be ready to go!
 
 ## Additional Comments
 
