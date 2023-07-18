@@ -141,8 +141,10 @@ def object_condensation_loss(truth,pred):
     
     #payload_scaling = calculate_charge(d['p_beta'],0.1)
     
-    
-    loss = reploss + attloss + betaloss + supress_noise_loss
+    #better purity, worse efficiency
+    #loss = attloss + 0.5*reploss + 0.1*(supress_noise_loss+betaloss) 
+    #good efficiency, worse purity
+    loss = attloss + 0.5*(reploss + betaloss ) + 0.1*supress_noise_loss
     
     #loss = tf.Print(loss,[loss,
     #                          reploss,

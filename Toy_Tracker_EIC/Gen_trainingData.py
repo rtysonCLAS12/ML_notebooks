@@ -38,7 +38,7 @@ track_candidates,labels=find_track_candidates(event_array,true_tracks,True)
 print('True Tracks from all Candidates')
 print(track_candidates[labels[:,1]==1])
 
-for j in range(0,10):
+for j in range(10,20):
     print('\nIteration '+str(j))
     train_hits=np.zeros((1,1))
     train_size=np.zeros((1,1))
@@ -62,9 +62,9 @@ for j in range(0,10):
             train_size=np.vstack((train_size,size))
             train_truth=np.vstack((train_truth,truth))
 
-    np.save('toy_tracker_data/truth_'+str(j)+'.npy',train_truth)
-    np.save('toy_tracker_data/size_'+str(j)+'.npy',train_size)
-    np.save('toy_tracker_data/hits_'+str(j)+'.npy',train_hits)
+    np.save('/scratch/richardt/Toy_Tracker_EIC/data/truth_'+str(j)+'.npy',train_truth)
+    np.save('/scratch/richardt/Toy_Tracker_EIC/data/size_'+str(j)+'.npy',train_size)
+    np.save('/scratch/richardt/Toy_Tracker_EIC/data/hits_'+str(j)+'.npy',train_hits)
     
 
 

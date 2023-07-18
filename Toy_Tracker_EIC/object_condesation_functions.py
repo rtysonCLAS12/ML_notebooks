@@ -1,10 +1,12 @@
-from Toy_Tracker_functions import norm, unnorm, find_hits_normed
+from Toy_Tracker_functions import norm, unnorm, find_hits_normed, genEvent
 from garnet import GarNetStack
 from Layers import GravNet_simple, GlobalExchange
 from betaLosses import object_condensation_loss
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.colors import to_rgb, to_rgba
 import math
+import time
 from tensorflow.keras.optimizers import Adam,Adamax
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Dense,BatchNormalization,Concatenate, Lambda#,concatenate
@@ -156,7 +158,7 @@ def make_model(vmax):
     
     feat=[inputs]
     
-    for i in range(2):#6
+    for i in range(12):#12 or 6
         #add global exchange and another dense here
         v = GlobalExchange()(inputs)
         v = Dense(64, activation='elu')(v)
@@ -164,7 +166,7 @@ def make_model(vmax):
         v = BatchNormalization(momentum=0.6)(v)
         v = Dense(64, activation='elu')(v)
         v = GravNet_simple(n_neighbours=10, 
-                 n_dimensions=4, 
+                 n_dimensions=2, #4
                  n_filters=128, 
                  n_propagate=64)(v)
         v = BatchNormalization(momentum=0.6)(v)
@@ -172,6 +174,7 @@ def make_model(vmax):
     
     v = Concatenate()(feat)
     v = Dense(64, activation='elu')(v)
+    v = Dense(32, activation='elu')(v)
     out_beta=Dense(1,activation='sigmoid')(v)
     out_latent=Dense(2)(v)
     #out_latent = Lambda(lambda x: x * 10.)(out_latent)
@@ -182,25 +185,53 @@ def make_model(vmax):
 
 #make plot of latent space representation of first event in data, useful to see clustering
 #arguments: network prediction, truth (noise and obj number), add something to title (ie epoch nb N)
+#where to save the plot, string at end of save name
 #number of tracks we're trying to ID, maximum amount of hits
-def plot_latent_space(pred,truth,title_add,n_tracks,vmax):
+def plot_latent_space(pred,truth,title_add,n_tracks,vmax,saveDir,endName):
     pred_latent_x=pred[0,:,1].reshape((vmax,1))
     pred_latent_y=pred[0,:,2].reshape((vmax,1))
+    pred_beta=pred[0,:,0].reshape((vmax,1))
+    
+    #underneath transparency of 0.2 the points are hard to see
+    pred_beta[pred_beta<0.2]=0.2
+
     truth_objid=truth[0,:,1].reshape((vmax,1))
+    
+    #basic matplotlib color palette
+    #assumes no more than 10 tracks per event, fine for now
+    colors=['blue','orange','green','red','purple','brown','pink','gray','olive','cyan']
+
+    bgCol=0
 
     fig = plt.figure(figsize=(20, 20))
+
+    #loop over tracks
     for i in range(n_tracks):
-        plt.scatter(x=pred_latent_x[truth_objid==i],s=200,y=pred_latent_y[truth_objid==i],label='Track '+str(i))
-    plt.scatter(x=pred_latent_x[truth_objid==9999],s=200,y=pred_latent_y[truth_objid==9999],label='Noise')
+        scatter(pred_latent_x[truth_objid==i],pred_latent_y[truth_objid==i],colors[i],pred_beta[truth_objid==i],label='Track '+str(i),s=200)
+        bgCol=i+1
+
+    #plot noise
+    scatter(pred_latent_x[truth_objid==9999],pred_latent_y[truth_objid==9999],colors[bgCol],pred_beta[truth_objid==9999],label='Noise',s=200)
+
     plt.title('Learned Latent Space '+title_add)
-    plt.ylabel('Coordinate 2')
-    plt.xlabel('Coordinate 0')
+    plt.ylabel('Coordinate 1 [AU]')
+    plt.xlabel('Coordinate 0 [AU]')
     plt.legend(loc='upper left')
-    plt.show()
+    #plt.show()
+    plt.savefig(saveDir+'latentSpace'+endName+'.png')
+
+#make scatter plot with each point having transparency related to beta val
+#arguments: x,y in latent space, color, beta array all other arguments
+def scatter(x, y, color, alpha_arr, **kwarg):
+    r, g, b = to_rgb(color)
+    # r, g, b, _ = to_rgba(color)
+    color = [(r, g, b, alpha) for alpha in alpha_arr]
+    plt.scatter(x, y, c=color, **kwarg)
 
 #plot training history
-#arguments: history, contains loss and val_loss as a function of epochs
-def plot_history(history):
+#arguments: history, contains loss and val_loss as a function of epochs, 
+#where to save the plot, string at end of save name
+def plot_history(history,saveDir,endName):
     fig = plt.figure(figsize=(20, 20))
     plt.plot(history.history['loss'])
     plt.plot(history.history['val_loss'])
@@ -208,16 +239,29 @@ def plot_history(history):
     plt.ylabel('loss')
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
-    plt.show()
+    #plt.show()
+    plt.savefig(saveDir+'loss_epoch'+endName+'.png')
 
-#train object condensation model
-#arguments: hits in detector, number of real hits (the rest of the hits array is all zero),
-#truth info (noise or not and track number)
-#returns: trained object condensation model
-def train_GNet_trackID(hits,size,truth):
-    
-    vmax=hits.shape[1]
-    
+#plot track efficiency and purity as a function of epochs
+#argument: purity, efficiency, epochs
+#where to save the plot, string at end of save name
+def plotMetrics_vEpochs(AvEff,AvPur,supEpochs,saveDir,endName):
+    fig = plt.figure(figsize=(20, 20))
+    plt.scatter(supEpochs, AvPur, marker='o', color='red',label='Purity',s=200)
+    plt.scatter(supEpochs, AvEff, marker='o', color='blue',label='Efficiency',s=200)
+    #plt.ylim(0.825, 1.01)
+    plt.legend(loc='lower center')
+    plt.xlabel('Epoch')
+    plt.ylabel('Metrics')
+    plt.axhline(y = 1.0, color = 'black', linestyle = '--') 
+    plt.axhline(y = 0.9, color = 'grey', linestyle = '--') 
+    plt.title('Metrics vs Training Epoch')
+    plt.savefig(saveDir+'metrics_epoch'+endName+'.png')
+
+#split dataset into training and testing (2/3 train 1/3 test) sets
+#arguments: training data
+#returns: training data split into train test
+def get_train_test(hits,size,truth):
     nbTrain=math.ceil(2*hits.shape[0]/3)
     
     hits_train=hits[:nbTrain,:]
@@ -228,6 +272,21 @@ def train_GNet_trackID(hits,size,truth):
     
     y_train=truth[:nbTrain,:]
     y_test=truth[nbTrain:,:]
+
+    return hits_train,hits_test,size_train,size_test,y_train,y_test
+
+
+#train object condensation model
+#arguments: hits in detector, number of real hits (the rest of the hits array is all zero),
+#truth info (noise or not and track number)
+#where to save plots, string at end of plot save name
+#path to load data during training, if '' then no data is reloaded
+#returns: trained object condensation model
+def train_GNet_trackID(hits,size,truth,saveDir,endName,reloadPath):
+    
+    vmax=hits.shape[1]
+    
+    hits_train,hits_test,size_train,size_test,y_train,y_test=get_train_test(hits,size,truth)
     
     print(hits_train.shape)
     print(hits_test.shape)
@@ -236,34 +295,167 @@ def train_GNet_trackID(hits,size,truth):
     
     model = make_model(vmax)
     
-    opti=Adam(learning_rate=0.0005)
+    opti=Adam(learning_rate=0.0001)
     model.compile(loss=object_condensation_loss, optimizer=opti)
     
     
+    #check what latent space looks like before training
     pred_test=model.predict(hits_test[0].reshape((1,vmax,3)))
-    plot_latent_space(pred_test,y_test[0].reshape((1,vmax,2)),'(Before Training)',2,vmax)
+    plot_latent_space(pred_test,y_test[0].reshape((1,vmax,2)),'(Before Training)',2,vmax,saveDir,endName+'_beforeTrain')
     
-    for i in range(0,10):
-        history=model.fit(hits_train,y_train,epochs=10, validation_data=(hits_test, y_test), verbose=1)
-        
-        pred_test=model.predict(hits_test[0].reshape((1,vmax,3)))
-        plot_latent_space(pred_test,y_test[0].reshape((1,vmax,2)),'(Epoch '+str(i*50+50)+')',2,vmax)
-        
-        plot_history(history)
-        
-    pred_test=model.predict(hits_test[0].reshape((1,vmax,3)))
-    plot_latent_space(pred_test,y_test[0].reshape((1,vmax,2)),'(After Training)',2,vmax)
 
+    nEpochs=40#40
+
+    AvEff=[]
+    AvPur=[]
+    supEpochs=[]
+
+    #do batches of super epochs for training
+    for i in range(0,100):#10
+        #train
+        history=model.fit(hits_train,y_train,epochs=nEpochs, validation_data=(hits_test, y_test), verbose=1)
+        
+        #plot latent space and training loss history
+        pred_test=model.predict(hits_test[0].reshape((1,vmax,3)))
+        plot_latent_space(pred_test,y_test[0].reshape((1,vmax,2)),'(Epoch '+str(i*nEpochs+nEpochs)+')',2,vmax,saveDir,endName+'_supEpoch'+str(i))
+        
+        plot_history(history,saveDir,endName+'_supEpoch'+str(i))
+
+        #test model by getting purity and efficiency of event
+        #hardcoded for now, should think of changing this
+        eff,pur=test_GNet(1000,model,20,20,5*20,24,False)
+        AvEff.append(eff)
+        AvPur.append(pur)
+        supEpochs.append(i*nEpochs+nEpochs)
+        plotMetrics_vEpochs(AvEff,AvPur,supEpochs,saveDir,endName)
+
+        #reload data or not during super epochs
+        #really helps with overfitting
+        #avoids having to load in a lot of training data
+        if reloadPath!='':
+            print(' Reloading data, super epoch: '+str(i))
+            hits, size, truth=load_data(reloadPath,4,vmax)
+            hits_train,hits_test,size_train,size_test,y_train,y_test=get_train_test(hits,size,truth)
+    
     
     return model
 
-#apply gravnet model, not yet finished
-def apply_GNet_trackID(track_identifier,hits,size):
-    pred_tracks = track_identifier.predict({"hits": hits, "size": size})
-        
-    return pred_tracks
+#load data from a given path, n files are loaded at random
+#arguments: path to data, number of files to load from there, max number of hits
+#returns: hits, size and truth arrays from path
+def load_data(path,nFiles,vmax):
+    fileNbs=np.random.randint(0,20,nFiles)
 
-#calculate metrics like track efficiency, not yet finished
+    hits=np.zeros((1,1,1))
+    size=np.zeros((1,1,1))
+    truth=np.zeros((1,1,1))
+
+    for fileNb in fileNbs:
+        #assumes no file has only 1 event
+        if hits.shape[0]==1:
+            hits=np.load(path+'hits_'+str(fileNb)+'.npy')
+            size=np.load(path+'size_'+str(fileNb)+'.npy')
+            truth=np.load(path+'truth_'+str(fileNb)+'.npy')
+        else:
+            hits=np.vstack((hits,np.load(path+'hits_'+str(fileNb)+'.npy')))
+            size=np.vstack((size,np.load(path+'size_'+str(fileNb)+'.npy')))
+            truth=np.vstack((truth,np.load(path+'truth_'+str(fileNb)+'.npy')))
+
+    hits=hits[:,:vmax,:]
+    size=size[:vmax,:]
+    truth=truth[:,:vmax,:]
+
+    return hits, size, truth
+
+#apply gravnet model to hits from single event, returns set of tracks for event
+#arguments: model, hits, size array,threshold to select condesation points
+#returns: predicted tracks
+def apply_GNet_trackID(track_identifier,hits,size,beta_thresh):
+    pred = track_identifier.predict(hits)
+    tracks=make_tracks_from_pred(hits,pred,beta_thresh)
+    return tracks
+
+#get all tracks in an event from object condensation prediction
+#idea is there's one condensation point per track which has the highest 
+#beta value predicted by model. we then group hits around this condensation
+#point using the distance in latent space.
+#in this case we select the closest hit in lc in each layer 
+#arguments: all hits, prediction, threshold to select condesation points
+#return: tracks in event
+def make_tracks_from_pred(hits,pred,beta_thresh):
+
+    vmax=hits.shape[1]
+    all_tracks=np.zeros((1,8))
+
+    pred_latent_coords=pred[0,:,1:3].reshape((vmax,2))
+    pred_beta=pred[0,:,0].reshape((vmax))
+    hits_event=hits[0,:,:].reshape((vmax,hits.shape[2]))
+    
+    #condensation points have high beta
+    #we group other hits around these based on latent space distance
+    cond_points_lc=pred_latent_coords[pred_beta>beta_thresh]
+    other_lc=pred_latent_coords[pred_beta<beta_thresh]
+    cond_points_hits=hits_event[pred_beta>beta_thresh]
+    other_hits=hits_event[pred_beta<beta_thresh]
+
+    #print(other_hits.shape)
+    #print(cond_points_hits.shape)
+        
+    #loop over condensation points
+    for j in range(0,cond_points_lc.shape[0]):
+        dist_lc=np.zeros((other_lc.shape[0]))+1000
+        #loop over other elements to assign distance
+        for k in range(0,other_lc.shape[0]):
+            dif_x=cond_points_lc[j,0]-other_lc[k,0]
+            dif_y=cond_points_lc[j,1]-other_lc[k,1]
+            dist_lc[k]=math.sqrt(dif_x**2+dif_y**2)
+
+        track=np.zeros((1,8))
+        #find best hit in each layer
+        for k in range(1,5):
+            #split hits and distance into layers
+            #z coord normed, going from 0.25 to 1
+            dist_lc_layer=dist_lc[other_hits[:,2]==k*1/4]
+            other_hits_layer=other_hits[other_hits[:,2]==k*1/4]
+
+            #print('layer '+str(k)+' '+str(k*1/4))
+            #print(other_hits_layer.shape)
+            #print(track.shape)
+
+            #sort by distance from lowest to highest
+            sort = np.argsort(dist_lc_layer)
+            dist_lc_layer=dist_lc_layer[sort]
+            other_hits_layer=other_hits_layer[sort]
+
+            #if only condensation points in one layer or
+            # or there's no noise in a layer or
+            #if network is a bit rubbish it might not assign noise beta
+            #under threshold in a given layer
+            if(other_hits_layer.shape[0]>0):
+                #first element has lowest distance
+                track[0,(k-1)*2]=other_hits_layer[0,0]
+                track[0,(k-1)*2+1]=other_hits_layer[0,1]
+        
+        #replace closest point in same layer as condensation point
+        #with condensation point which is actually best hit
+        l=int((cond_points_hits[j,2]-0.25)*8)
+        track[0,l]=cond_points_hits[j,0]
+        track[0,l+1]=cond_points_hits[j,1]
+        
+        if j==0:
+            all_tracks=track
+        else:
+            all_tracks=np.vstack((all_tracks,track))
+
+    return all_tracks
+
+        
+
+#calculate metrics like track efficiency, and purity for one event
+#efficiency defined as percentage of true tracks that survive
+#purity defined as ratio of false tracks over all predicted tracks
+#arguments: true tracks and predicted tracks
+#returns purity and efficiency
 def calculate_GNet_metrics(true_tracks,selected_tracks):
     TP=0
     FP=0
@@ -282,6 +474,87 @@ def calculate_GNet_metrics(true_tracks,selected_tracks):
         else:
             FP=FP+1
             
-    eff=TP/true_tracks.size[0]
-    FP_eff=FP/true_tracks.size[0]
+    eff=TP/true_tracks.shape[0]
+    FP_eff=TP/(TP+FP)
+    return eff, FP_eff
 
+#test the object condensation method by generating n events
+#and calculating efficiency, purity and mesuring prediciton times
+#arguments: nb test events, GNet model, x/y/z size of array
+#max number of hits, whether or not to print average eff,pur and times
+#return: efficiency and purity averaged over nb test events.
+def test_GNet(nb_events,model,width,height,depth,vmax,doPrint):
+
+    AvEff=0
+    AvPur=0
+    
+    AvEff_cr=0
+    AvPur_cr=0
+
+    AvTime_getEvent=0
+    AvTime_getCandidates=0
+    AvTime_apply=0
+
+    for i in range(nb_events):
+    
+        #if (i%1000)==0:
+        #    print('Generated '+str(i)+' events')
+
+        #hard code these for now
+        nbTracks=2
+        resolution=0
+        nbNoise=4
+        allow_overlap=False
+
+        #timing to get an event
+        t0_getEvent = time.time()
+
+        true_tracks,event_array=genEvent(depth,width,height,nbTracks,resolution,nbNoise,allow_overlap)
+
+        t1_getEvent = time.time()
+        AvTime_getEvent=AvTime_getEvent+(t1_getEvent-t0_getEvent)
+
+        #timing to find track candidates (not requiring meaningful labels)
+        t0_getCandidates = time.time()
+
+        hits,size,truth=get_hits_GNet(event_array,width,height,depth,vmax,true_tracks)
+
+        t1_getCandidates = time.time()
+        AvTime_getCandidates=AvTime_getCandidates+(t1_getCandidates-t0_getCandidates)
+
+        #timing to apply ID selecting only tracks with best response
+        t0_apply = time.time()
+
+        pred_tracks=apply_GNet_trackID(model,hits,size,0.1)
+
+        t1_apply = time.time()
+        AvTime_apply=AvTime_apply+(t1_apply-t0_apply)
+
+
+        pred_tracks=unnorm(pred_tracks,width,height)
+        eff,pur=calculate_GNet_metrics(true_tracks,pred_tracks)
+
+        AvEff=AvEff+eff
+        AvPur=AvPur+pur
+
+    #average metrics, nb of tracks and times
+    AvEff=AvEff/nb_events
+    AvPur=AvPur/nb_events
+
+
+    AvTime_getEvent=AvTime_getEvent/nb_events
+    AvTime_getCandidates=AvTime_getCandidates/nb_events
+    AvTime_apply=AvTime_apply/nb_events
+
+    if doPrint==True:
+
+        print('')
+        print('Percentage of true tracks that survive '+str(AvEff))
+        print('Fraction of true tracks in all predicted tracks '+str(AvPur))
+
+        print('')
+        print('Generating an event took on average '+str(AvTime_getEvent)+'s')
+        print('Getting array of hits took on average '+str(AvTime_getCandidates)+'s')
+        print('Applying the track ID took on average '+str(AvTime_apply)+'s')
+        
+    return AvEff,AvPur
